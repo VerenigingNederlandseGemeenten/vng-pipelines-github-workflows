@@ -6,6 +6,7 @@ on:
         description: The application name (repository name without api/contract/ui)
         required: true
       aws-region:
+        type: string
         description: The region in AWS to push to
         required: true
       azure-feed:
