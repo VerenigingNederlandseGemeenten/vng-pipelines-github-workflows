@@ -50,61 +50,61 @@ on:
       replacements-out:
         description: Replacement values separated by a semicolon (;)
         required: false
-  jobs:
-    dotnet-library-pipeline:
-      name: .NET Library Pipeline
-      runs-on: ubuntu-latest
-      env:
-        GH_TOKEN: ${{ github.token }}
-      steps:
-        - name: Checkout repository
-          uses: actions/checkout@v3
-          with:
-            repository: ${{inputs.repository}}
-            path: workflow/repository
-            fetch-depth: 0
-        - uses: actions/setup-dotnet@v4
-          with:
-            dotnet-version: ${{inputs.dotnet-version}}
-        - name: Replace placeholders
-          uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/replace-placeholders@master
-          with:
-            replacements-in: ${{inputs.replacements-in}}
-            replacements-out: ${{secrets.replacements-out}}
-        - id: semver
-          uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/gitversion-semver@master
-        - name: .NET Test
-          uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/dotnet-test@master
-          with:
-            solution-path: ${{inputs.solution-location}}
-            azure-feed: ${{inputs.azure-feed}}
-            azure-source: ${{inputs.azure-source}}
-            azure-api-key: ${{secrets.azure-api-key}}
-        - name: nuget-push
-          uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/dotnet-publish-nuget@master
-          with:
-            software-version: ${{ steps.semver.outputs.semantic-version }}
-            project-folder: workflow/repository/Source
-            nuget-api-key: ${{secrets.nuget-api-key}}
-            azure-api-key: ${{secrets.azure-api-key}}
-            azure-source: ${{inputs.azure-source}}
-            azure-feed: ${{inputs.azure-feed}}
-            folder-prefix: "Assemblies/"
-            nuget: ${{inputs.nuget}}
-            dotnet-version: ${{inputs.dotnet-version}}
-            add-source: false
-        - name: Add release version to repository
-          if: contains('refs/heads/master', github.ref)
-          working-directory: workflow/repository
-          run: |
-            gh release create "${{ steps.semver.outputs.semantic-version }}" \
-              --title "${{ steps.semver.outputs.semantic-version }}" \
-              --notes "" \
-              $([[ "${{ github.ref }}" != "refs/heads/master" ]] && echo "--prerelease")
-        - name: Clean up old tags and releases
-          if: github.ref == 'refs/heads/master'
-          uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/github-clean-tags-releases@master
-          with:
-            keep: 10
-            token: ${{ github.token }}
-            semantic-version: ${{ steps.semver.outputs.semantic-version }}
+jobs:
+  dotnet-library-pipeline:
+    name: .NET Library Pipeline
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          repository: ${{inputs.repository}}
+          path: workflow/repository
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{inputs.dotnet-version}}
+      - name: Replace placeholders
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/replace-placeholders@master
+        with:
+          replacements-in: ${{inputs.replacements-in}}
+          replacements-out: ${{secrets.replacements-out}}
+      - id: semver
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/gitversion-semver@master
+      - name: .NET Test
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/dotnet-test@master
+        with:
+          solution-path: ${{inputs.solution-location}}
+          azure-feed: ${{inputs.azure-feed}}
+          azure-source: ${{inputs.azure-source}}
+          azure-api-key: ${{secrets.azure-api-key}}
+      - name: nuget-push
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/dotnet-publish-nuget@master
+        with:
+          software-version: ${{ steps.semver.outputs.semantic-version }}
+          project-folder: workflow/repository/Source
+          nuget-api-key: ${{secrets.nuget-api-key}}
+          azure-api-key: ${{secrets.azure-api-key}}
+          azure-source: ${{inputs.azure-source}}
+          azure-feed: ${{inputs.azure-feed}}
+          folder-prefix: "Assemblies/"
+          nuget: ${{inputs.nuget}}
+          dotnet-version: ${{inputs.dotnet-version}}
+          add-source: false
+      - name: Add release version to repository
+        if: contains('refs/heads/master', github.ref)
+        working-directory: workflow/repository
+        run: |
+          gh release create "${{ steps.semver.outputs.semantic-version }}" \
+            --title "${{ steps.semver.outputs.semantic-version }}" \
+            --notes "" \
+            $([[ "${{ github.ref }}" != "refs/heads/master" ]] && echo "--prerelease")
+      - name: Clean up old tags and releases
+        if: github.ref == 'refs/heads/master'
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/github-clean-tags-releases@master
+        with:
+          keep: 10
+          token: ${{ github.token }}
+          semantic-version: ${{ steps.semver.outputs.semantic-version }}
