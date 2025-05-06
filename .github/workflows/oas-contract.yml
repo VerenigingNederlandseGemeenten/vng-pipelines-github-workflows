@@ -19,21 +19,19 @@ on:
     secrets:
       azure-api-key:
         required: false
-      pat-github:
-        required: true
 
 jobs:
   build-push-oas:
     name: Build + NuGet Push
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.pat-github }}
+      GH_TOKEN: ${{ github.token }}
       NUGET_AUTH_TOKEN: ${{ secrets.azure-api-key }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.pat-github }}
+          token: ${{ github.token }}
           path: workflow/repository
           fetch-depth: 0
       - uses: actions/setup-dotnet@v4
@@ -53,6 +51,15 @@ jobs:
           spectral lint ./workflow/repository/src/oas.yaml -r https://spectral.jaytech.nl/spectral-ruleset.yaml
       - name: Install Client Generator
         run: dotnet tool install --global JayTech.Clis.ClientGeneration --ignore-failed-sources
+      - name: TODO! Remove NuGet access to JayTech
+        run: |
+          dotnet nuget add source \
+            --username "az" \
+            --password "${{ secrets.JAYTECH_PAT }}" \
+            --store-password-in-clear-text \
+            --name "JayTech" \
+            "https://pkgs.dev.azure.com/JayTechIT/JayTech/_packaging/JayTech/nuget/v3/index.json"
+
       - name: Run dotnet-service generator
         run: |
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
@@ -84,5 +91,5 @@ jobs:
         uses: JayTechIT/jaytech-pipelines-github-actions/github-clean-tags-releases@master
         with:
           keep: 10
-          token: ${{ secrets.pat-github }}
+          token: ${{ github.token }}
           semantic-version: ${{ steps.semver.outputs.semantic-version }}
