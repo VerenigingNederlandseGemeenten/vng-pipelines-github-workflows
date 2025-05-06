@@ -32,14 +32,10 @@ jobs:
     name: Build + NuGet push
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.pat-github }}
-          path: workflow/repository
-          fetch-depth: 0
+      - name: Checkout infra repo (this repo)
+        uses: actions/checkout@v4
       - name: Checkout JayTech actions
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: master
           repository: VerenigingNederlandseGemeenten/vng-pipelines-github-actions
