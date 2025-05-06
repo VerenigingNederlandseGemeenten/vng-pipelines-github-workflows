@@ -19,6 +19,8 @@ on:
     secrets:
       azure-api-key:
         required: false
+      jaytech-pat:
+        required: true
 
 jobs:
   build-push-oas:
