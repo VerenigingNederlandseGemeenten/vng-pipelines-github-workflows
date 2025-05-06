@@ -1,0 +1,105 @@
+on:
+  workflow_call:
+    inputs:
+      namespace:
+        type: string
+        description: The application name (repository name without api/contract/ui)
+        required: true
+      dotnet-version:
+        type: string
+        description: Specify which .NET version to use
+        required: false
+        default: "9.x"
+      spectral-validation:
+        type: boolean
+        description: Validate the contract against JayTech's spectral rules?
+        default: true
+    secrets:
+      pat-github:
+        description: GitHub PAT
+        required: true
+      azure-api-key:
+        description: The Azure API key
+        required: false
+      azure-source:
+        description: The Azure Artifacts Source
+        required: false
+      azure-feed:
+        description: The Azure Artifacts Feed
+        required: false
+jobs:
+  build-push-oas:
+    name: Build + NuGet push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.pat-github }}
+          path: workflow/repository
+          fetch-depth: 0
+      - name: Checkout JayTech actions
+        uses: actions/checkout@v3
+        with:
+          ref: master
+          repository: VerenigingNederlandseGemeenten/vng-pipelines-github-actions
+          token: ${{ secrets.pat-github }}
+          path: workflow/actions
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{inputs.dotnet-version}}
+      - name: Add Azure feed
+        shell: bash
+        run: dotnet nuget add source ${{ secrets.azure-feed }} --name ${{secrets.azure-source}} --username az --password ${{ secrets.azure-api-key }} --store-password-in-clear-text 
+      - id: semver
+        name: Determine semantic version
+        uses: ./workflow/actions/gitversion-semver
+      - name: Set contract version
+        run: sed -i "s/{{OAS_VERSION}}/${{ steps.semver.outputs.semantic-version }}/g" ./workflow/repository/src/oas.yaml
+      - if: ${{ inputs.spectral-validation == true }}
+        name: Validate spectral
+        run: |
+          npm install -g @stoplight/spectral
+          spectral lint ./workflow/repository/src/oas.yaml -r https://spectral.vng.nl/spectral-ruleset.yaml
+      - name: Checkout client generator
+        uses: actions/checkout@v3
+        with:
+          repository: VerenigingNederlandseGemeenten/vng-tools-clis-generators-client
+          token: ${{ secrets.pat-github }}
+          path: workflow/client-generator
+          fetch-depth: 0
+      - name: Run Client Generator
+        shell: bash
+        run: |
+          sed -i "s~{{IN}}~../../../../../workflow/repository/src/oas.yaml~g" ./workflow/client-generator/Source/Assemblies/JayTech.Clis.ClientGeneration/Properties/launchSettings.json
+          sed -i "s~{{OUT}}~../../../../../workflow/repository/generated~g" ./workflow/client-generator/Source/Assemblies/JayTech.Clis.ClientGeneration/Properties/launchSettings.json
+          sed -i "s~{{NAMESPACE}}~${{inputs.namespace}}~g" ./workflow/client-generator/Source/Assemblies/JayTech.Clis.ClientGeneration/Properties/launchSettings.json
+          cd ./workflow/client-generator/Source/Assemblies/JayTech.Clis.ClientGeneration
+          dotnet run --launch-profile Production
+          ls -A
+      - name: nuget-push
+        uses: ./workflow/actions/dotnet-publish-nuget
+        with:
+          software-version: ${{ steps.semver.outputs.semantic-version }}
+          project-folder: ./workflow/repository/generated
+          azure-api-key: ${{secrets.azure-api-key}}
+          azure-source: ${{secrets.azure-source}}
+          azure-feed: ${{secrets.azure-feed}}
+          add-source: "false"
+          dotnet-version: ${{inputs.dotnet-version}}
+      - name: Tag & Release
+        uses: actions/create-release@v1
+        with:
+          draft: false
+          prerelease: false
+          release_name: ${{ steps.semver.outputs.semantic-version }}
+          tag_name: ${{ steps.semver.outputs.semantic-version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.pat-github }}
+      - name: Clean up old tags and releases
+        if: github.ref == 'refs/heads/master'
+        uses: ./workflow/actions/github-clean-tags-releases
+        with:
+          keep: 10
+          token: ${{ secrets.pat-github }}
+          semantic-version: ${{ steps.semver.outputs.semantic-version }}
