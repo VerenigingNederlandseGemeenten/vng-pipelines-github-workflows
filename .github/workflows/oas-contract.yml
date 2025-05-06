@@ -41,7 +41,7 @@ jobs:
         run: dotnet nuget add source ${{ inputs.azure-feed }} --name ${{ inputs.azure-source }} --username az --password ${{ secrets.azure-api-key }} --store-password-in-clear-text
       - id: semver
         name: Determine semantic version
-        uses: JayTechIT/jaytech-pipelines-github-actions/gitversion-semver@master
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/gitversion-semver@master
       - name: Set contract version
         run: sed -i "s/{{OAS_VERSION}}/${{ steps.semver.outputs.semantic-version }}/g" ./workflow/repository/src/oas.yaml
       - if: ${{ inputs.spectral-validation == true }}
@@ -49,8 +49,6 @@ jobs:
         run: |
           npm install -g @stoplight/spectral-cli
           spectral lint ./workflow/repository/src/oas.yaml -r https://spectral.jaytech.nl/spectral-ruleset.yaml
-      - name: Install Client Generator
-        run: dotnet tool install --global JayTech.Clis.ClientGeneration --ignore-failed-sources
       - name: TODO! Remove NuGet access to JayTech
         run: |
           dotnet nuget add source \
@@ -58,8 +56,9 @@ jobs:
             --password "${{ secrets.JAYTECH_PAT }}" \
             --store-password-in-clear-text \
             --name "JayTech" \
-            "https://pkgs.dev.azure.com/JayTechIT/JayTech/_packaging/JayTech/nuget/v3/index.json"
-
+            "https://pkgs.dev.azure.com/VerenigingNederlandseGemeenten/JayTech/_packaging/JayTech/nuget/v3/index.json"
+      - name: Install Client Generator
+        run: dotnet tool install --global JayTech.Clis.ClientGeneration --ignore-failed-sources
       - name: Run dotnet-service generator
         run: |
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
@@ -70,7 +69,7 @@ jobs:
             -n ${{ inputs.namespace }} \
             -v ${{ steps.semver.outputs.semantic-version }}
       - name: Push to NuGet
-        uses: JayTechIT/jaytech-pipelines-github-actions/dotnet-publish-nuget@master
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/dotnet-publish-nuget@master
         with:
           software-version: ${{ steps.semver.outputs.semantic-version }}
           project-folder: ./workflow/repository/generated
@@ -88,7 +87,7 @@ jobs:
             $([[ "${{ github.ref }}" != "refs/heads/master" ]] && echo "--prerelease")
       - name: Clean old tags and releases
         if: github.ref == 'refs/heads/master'
-        uses: JayTechIT/jaytech-pipelines-github-actions/github-clean-tags-releases@master
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/github-clean-tags-releases@master
         with:
           keep: 10
           token: ${{ github.token }}
