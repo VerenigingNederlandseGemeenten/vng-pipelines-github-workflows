@@ -70,6 +70,8 @@ jobs:
             -o ./workflow/repository/generated \
             -n ${{ inputs.namespace }} \
             -v ${{ steps.semver.outputs.semantic-version }}
+      - name: Remove JayTech NuGet source
+        run: dotnet nuget remove source JayTech
       - name: Push to NuGet
         uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/dotnet-publish-nuget@master
         with:
