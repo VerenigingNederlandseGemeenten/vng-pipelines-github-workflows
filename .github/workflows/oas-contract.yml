@@ -54,7 +54,7 @@ jobs:
       - name: TODO! Remove NuGet access to JayTech
         run: |
           dotnet nuget add source \
-            "https://pkgs.dev.azure.com/VerenigingNederlandseGemeenten/JayTech/_packaging/JayTech/nuget/v3/index.json" \
+            "https://pkgs.dev.azure.com/JayTechIT/JayTech/_packaging/JayTech/nuget/v3/index.json" \
             --name JayTech \
             --username az \
             --password "${{ secrets.jaytech-pat }}" \
