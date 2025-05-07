@@ -60,7 +60,7 @@ jobs:
             --password "${{ secrets.jaytech-pat }}" \
             --store-password-in-clear-text    
       - name: Install Client Generator
-        run: dotnet tool install --global JayTech.Clis.ClientGeneration --ignore-failed-sources
+        run: dotnet tool install --global JayTech.Clis.ClientGeneration.VNG --ignore-failed-sources
       - name: Run dotnet-service generator
         run: |
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
