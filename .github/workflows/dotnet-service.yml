@@ -1,0 +1,109 @@
+on:
+  workflow_call:
+    inputs:
+      name:
+        type: string
+        description: The name of the application (repository name without api/contract/ui/env)
+        required: true
+      dotnet-version:
+        type: string
+        description: Specify which .NET version to use
+        required: false
+        default: "9.x"
+    secrets:
+      aws-region:
+        description: The region in AWS to push to
+        required: true
+      aws-access-key-id:
+        description: The AWS Access Key ID
+        required: true
+      aws-secret-access-key:
+        description: The AWS Secret Access Key
+        required: true
+      azure-api-key:
+        description: The Azure API key
+        required: false
+      azure-feed:
+        description: The Azure Artifacts Feed
+        required: false
+      azure-source:
+        description: The Azure Artifacts Source
+        required: false
+      pat-github:
+        description: GitHub PAT
+        required: true
+
+jobs:
+  dotnet-service-pipeline:
+    name: .NET Service Pipeline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ github.repository }}
+          path: workflow/repository
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{inputs.dotnet-version}}
+      - id: semver
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/gitversion-semver@master
+      - name: .NET Test
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/dotnet-test@master
+        with:
+          solution-path: Source/
+          azure-feed: ${{secrets.azure-feed}}
+          azure-source: ${{secrets.azure-source}}
+          azure-api-key: ${{secrets.azure-api-key}}
+      - name: Push Docker Image To AWS
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/docker-push-aws@master
+        with:
+          container-name: ${{ github.event.repository.name }}
+          software-version: ${{ steps.semver.outputs.semantic-version }}
+          aws-access-key-id: ${{secrets.aws-access-key-id}}
+          aws-secret-access-key: ${{secrets.aws-secret-access-key}}
+          aws-region: ${{secrets.aws-region}}
+          dotnet-version: ${{inputs.dotnet-version}}
+      - name: Tag & Release
+        uses: actions/create-release@v1
+        with:
+          draft: false
+          prerelease: ${{ github.ref != 'refs/heads/master' }}
+          release_name: ${{ steps.semver.outputs.semantic-version }}
+          tag_name: ${{ steps.semver.outputs.semantic-version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.pat-github }}
+      - name: Checkout Environment Repo
+        uses: actions/checkout@v3
+        with:
+          ref: "development"
+          repository: ${{ github.repository_owner }}/${{ inputs.name }}-environment
+          token: ${{secrets.pat-github}}
+          path: workflow/environment
+      - name: Set GitOps version
+        uses: fjogeleit/yaml-update-action@main
+        with:
+          valueFile: "./workflow/environment/version-api.yml"
+          propertyPath: "version"
+          value: ${{ steps.semver.outputs.semantic-version }}
+          commitChange: false
+          updateFile: true
+      - name: Push to GitOps
+        id: push_directory
+        uses: cpina/github-action-push-to-another-repository@v1.7.2
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.pat-github }}
+        with:
+          source-directory: workflow/gitops
+          destination-github-username: ${{ github.repository_owner }}
+          destination-repository-name: ${{ inputs.name }}-environment
+          commit-message: '[API-v${{ steps.semver.outputs.semantic-version }}] - ${{ github.event.head_commit.message }}'
+          target-branch: development
+      - name: Clean up old tags and releases
+        if: github.ref == 'refs/heads/master'
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/github-clean-tags-releases@master
+        with:
+          keep: 10
+          token: ${{ secrets.pat-github }}
+          semantic-version: ${{ steps.semver.outputs.semantic-version }}
