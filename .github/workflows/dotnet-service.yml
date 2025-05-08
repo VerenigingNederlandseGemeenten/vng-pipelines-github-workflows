@@ -10,6 +10,11 @@ on:
         description: Specify which .NET version to use
         required: false
         default: "9.x"
+      replacements-in:
+        type: string
+        description: Replacement placeholders separated by a semicolon (;)
+        required: false
+        default: ""
     secrets:
       aws-region:
         description: The region in AWS to push to
@@ -32,6 +37,9 @@ on:
       pat-github:
         description: GitHub PAT
         required: true
+      replacements-out:
+        description: Replacement values separated by a semicolon (;)
+        required: false
 
 jobs:
   dotnet-service-pipeline:
@@ -47,6 +55,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{inputs.dotnet-version}}
+      - name: Replace placeholders
+        uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/replace-placeholders@master
       - id: semver
         uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/gitversion-semver@master
       - name: .NET Test
