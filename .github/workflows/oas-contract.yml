@@ -19,7 +19,7 @@ on:
     secrets:
       azure-api-key:
         required: false
-      jaytech-pat:
+      jaytech-azure-api-key:
         required: true
 
 jobs:
@@ -57,7 +57,7 @@ jobs:
             "https://pkgs.dev.azure.com/JayTechIT/JayTech/_packaging/JayTech/nuget/v3/index.json" \
             --name JayTech \
             --username az \
-            --password "${{ secrets.jaytech-pat }}" \
+            --password "${{ secrets.jaytech-azure-api-key }}" \
             --store-password-in-clear-text    
       - name: Install Client Generator (prerelease allowed)
         run: dotnet tool install --global JayTech.Clis.ClientGeneration.VNG --prerelease --ignore-failed-sources
