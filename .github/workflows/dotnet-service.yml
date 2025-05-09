@@ -1,6 +1,14 @@
 on:
   workflow_call:
     inputs:
+      azure-feed:
+        type: string
+        description: The Azure Artifacts Feed
+        required: false
+      azure-source:
+        type: string
+        description: The Azure Artifacts Source
+        required: false
       name:
         type: string
         description: The name of the application (repository name without api/contract/ui/env)
@@ -27,12 +35,6 @@ on:
         required: true
       azure-api-key:
         description: The Azure API key
-        required: false
-      azure-feed:
-        description: The Azure Artifacts Feed
-        required: false
-      azure-source:
-        description: The Azure Artifacts Source
         required: false
       pat-github:
         description: GitHub PAT
@@ -63,8 +65,8 @@ jobs:
         uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/dotnet-test@master
         with:
           solution-path: Source/
-          azure-feed: ${{secrets.azure-feed}}
-          azure-source: ${{secrets.azure-source}}
+          azure-feed: ${{inputs.azure-feed}}
+          azure-source: ${{inputs.azure-source}}
           azure-api-key: ${{secrets.azure-api-key}}
       - name: Push Docker Image To AWS
         uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/docker-push-aws@master
