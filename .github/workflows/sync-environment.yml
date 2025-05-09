@@ -1,0 +1,108 @@
+name: Sync Environment Workflow
+
+on:
+  workflow_call:
+    inputs:
+      app-id:
+        description: The unique app identifier in case of a mobile app.
+        type: string
+        required: true
+      api-image-uri:
+        description: The AWS ECR link to the Docker image repository.
+        type: string
+        required: true
+      cloudfront-distribution:
+        description: The ID of the AWS Cloudfront distribution
+        type: string
+        required: true
+      lambda-function:
+        description: The name of the lambda function
+        type: string
+        required: true
+      s3-bucket:
+        description: The name of the AWS S3 bucket
+        type: string
+        required: true
+      ui-repository:
+        description: The '[org]/[repository]' location of the UI repository
+        type: string
+        required: true
+    secrets:
+      aws-region:
+        description: The region in AWS to push to
+        required: true
+      aws-access-key-id:
+        description: The AWS Access Key ID
+        required: true
+      aws-secret-access-key:
+        description: The AWS Secret Access Key
+        required: true
+      pat-github:
+        description: GitHub PAT
+        required: true
+
+jobs:
+  preparations:
+    runs-on: ubuntu-latest
+    outputs:
+      api_changed: ${{ steps.set_vars.outputs.api_changed }}
+      ui_changed: ${{ steps.set_vars.outputs.ui_changed }}
+    steps:
+      - run: echo "The branch name is ${{ github.ref_name }}"
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ github.event.inputs.repository }}
+          token: ${{ secrets.pat-github }}
+          path: workflow/repository
+          fetch-depth: 0
+      - id: set_vars
+        working-directory: workflow/repository
+        run: |
+          echo "Checking for API/UI changes..."
+          API_CHANGED=$(git diff HEAD^ HEAD --quiet -- ./version-api.yml ./development.json ./production.json || echo "true")
+          UI_CHANGED=$(git diff HEAD^ HEAD --quiet -- ./version-ui.yml || echo "true")
+          echo "API_CHANGED=$API_CHANGED" >> $GITHUB_ENV
+          echo "UI_CHANGED=$UI_CHANGED" >> $GITHUB_ENV
+          echo "::set-output name=api_changed::$API_CHANGED"
+          echo "::set-output name=ui_changed::$UI_CHANGED"
+  
+  sync-api:
+    needs: preparations
+    if: ${{ needs.preparations.outputs.api_changed == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          path: ./workflow/repository
+      - name: Fetch API version
+        id: api-version
+        uses: KJ002/read-yaml@main
+        with:
+          file: "./workflow/repository/version-api.yml"
+          key-path: '["version"]'
+      - name: configure credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.aws-access-key-id }}
+          aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
+          aws-region: ${{ secrets.aws-region }}
+      - name: Update Lambda environment variables
+        run: |
+          # Convert each JSON key-value pair into an environment variable string, preserving quotes around string values
+          env_vars=$(jq -r 'to_entries | map("\(.key)=\(.value|tojson)") | .[]' ./workflow/repository/${{github.ref_name}}.json)
+          # Convert newline-separated key-value pairs to a comma-separated list
+          env_vars_formatted=$(echo "$env_vars" | paste -sd, -)
+          # Update the Lambda function configuration with the new environment variables
+          aws lambda update-function-configuration --function-name ${{inputs.lambda-function}} --environment "Variables={${env_vars_formatted}}"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.aws-access-key-id }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.aws-secret-access-key }}
+          AWS_REGION: ${{ secrets.aws-region }}
+      - name: Wait for configuration update to complete
+        run: sleep 40
+      - uses: int128/deploy-lambda-action@v1
+        with:
+          function-name: ${{inputs.lambda-function}}
+          image-uri: ${{inputs.api-image-uri}}:${{steps.api-version.outputs.data}}
