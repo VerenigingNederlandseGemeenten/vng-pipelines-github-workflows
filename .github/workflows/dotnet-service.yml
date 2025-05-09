@@ -5,6 +5,10 @@ on:
         type: string
         description: The Azure Artifacts Feed
         required: false
+      aws-region:
+        description: The region in AWS to push to
+        required: true
+        type: string
       azure-source:
         type: string
         description: The Azure Artifacts Source
@@ -24,9 +28,6 @@ on:
         required: false
         default: ""
     secrets:
-      aws-region:
-        description: The region in AWS to push to
-        required: true
       aws-access-key-id:
         description: The AWS Access Key ID
         required: true
