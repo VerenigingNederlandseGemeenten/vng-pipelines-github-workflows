@@ -59,6 +59,9 @@ jobs:
           dotnet-version: ${{inputs.dotnet-version}}
       - name: Replace placeholders
         uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/replace-placeholders@master
+        with:
+          replacements-in: ${{inputs.replacements-in}}
+          replacements-out: ${{secrets.replacements-out}}
       - id: semver
         uses: VerenigingNederlandseGemeenten/vng-pipelines-github-actions/gitversion-semver@master
       - name: .NET Test
