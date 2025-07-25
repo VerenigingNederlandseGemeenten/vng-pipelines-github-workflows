@@ -3,28 +3,12 @@ name: Sync Environment Workflow
 on:
   workflow_call:
     inputs:
-      app-id:
-        description: The unique app identifier in case of a mobile app.
-        type: string
-        required: true
       api-image-uri:
         description: The AWS ECR link to the Docker image repository.
         type: string
         required: true
-      cloudfront-distribution:
-        description: The ID of the AWS Cloudfront distribution
-        type: string
-        required: true
       lambda-function:
         description: The name of the lambda function
-        type: string
-        required: true
-      s3-bucket:
-        description: The name of the AWS S3 bucket
-        type: string
-        required: true
-      ui-repository:
-        description: The '[org]/[repository]' location of the UI repository
         type: string
         required: true
     secrets:
