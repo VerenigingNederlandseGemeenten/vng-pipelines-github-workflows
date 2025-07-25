@@ -97,7 +97,7 @@ jobs:
           repository: ${{ github.repository_owner }}/${{ inputs.name }}-environment
           token: ${{secrets.pat-github}}
           path: workflow/environment
-      - name: Set GitOps version
+      - name: Set environment version
         uses: fjogeleit/yaml-update-action@main
         with:
           valueFile: "./workflow/environment/version-api.yml"
@@ -105,13 +105,13 @@ jobs:
           value: ${{ steps.semver.outputs.semantic-version }}
           commitChange: false
           updateFile: true
-      - name: Push to GitOps
+      - name: Push to environment
         id: push_directory
         uses: cpina/github-action-push-to-another-repository@v1.7.2
         env:
           API_TOKEN_GITHUB: ${{ secrets.pat-github }}
         with:
-          source-directory: workflow/gitops
+          source-directory: workflow/environment
           destination-github-username: ${{ github.repository_owner }}
           destination-repository-name: ${{ inputs.name }}-environment
           commit-message: '[API-v${{ steps.semver.outputs.semantic-version }}] - ${{ github.event.head_commit.message }}'
